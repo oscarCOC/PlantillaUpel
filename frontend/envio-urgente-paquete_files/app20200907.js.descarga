@@ -1,0 +1,309 @@
+$(document).ready(function(e) {
+    if($('#rating-form-container').length > 0) {
+        getRatingForm('rating-form-container');
+    }
+
+    if($('#rating-form-xs-container').length > 0) {
+        $.ajax({
+            url: configuration.getUrlRatingXs(),
+            method: 'GET',
+            xhrFields: { withCredentials: true },
+            success: function (s) {
+                $('#rating-form-xs-container').html(s);
+                initFormXs();
+            },
+            error: function (err) {
+                console.log(err);
+            }
+        });
+    }
+
+    if($('#widget-tracking-input').length > 0) {
+        trackWidget('widget-tracking-input', 'widget-tracking-result-container');
+    }
+});
+
+function trackWidget(inputId, containerId) {
+    let $input = $('#' + inputId);
+    let $container = $('#' + containerId);
+
+    const trackButtonText = {
+        fr: 'Suivre votre envoi sur le site du transporteur',
+        en: 'Track your shipment on the carrier website',
+        de: 'Ihren Versand auf der Webseite des Transporteurs vergfolgen',
+        it: 'Monitora la tua spedizione sul sito del vettore',
+        es: 'Sigue tu envío en el sitio web del transportista',
+    };
+
+    const errorText = {
+        fr: 'Expédition non trouvée',
+        en: 'Shipment not found',
+        de: 'Shipment not found',
+        it: 'Shipment not found',
+        es: 'Shipment not found'
+    };
+
+    $input.on('change', function() {
+        let trackval = $(this).val();
+        if(trackval.length > 5) {
+            let trackAjaxCall = $.ajax({
+                url: configuration.getUrlTrack(trackval),
+                method: 'POST',
+                xhrFields: { withCredentials: true },
+                success: function(s) {
+                    if(s.success) {
+                        if(typeof s.tracking_url !== "undefined" && s.tracking_url.length > 0) {
+                            $container.html('<a class="btn btn-primary" href="'+s.tracking_url+'" target="__blank">'+trackButtonText[configuration.getCurrentLocale()]+'</a>');
+                        }
+                        $container.append('<div class="mt-4">'+s.tracking_html+'</div>');
+                    } else {
+                        $container.html('<div class="alert alert-danger mt-4">'+errorText[configuration.getCurrentLocale()]+'</div>');
+                    }
+                },
+                error: function(err) {
+                    console.error(err);
+                }
+            })
+        }
+    });
+}
+
+function getRatingForm(containerId){
+    let $targetContainer = $('#' + containerId);
+
+    let urlRating = configuration.getUrlRating();
+    $.ajax({
+        url: urlRating,
+        method: 'GET',
+        xhrFields: { withCredentials: true },
+        success: function (s) {
+            $targetContainer.html(s);
+            initForm();
+        },
+        error: function (err) {
+            console.log(err);
+        }
+    });
+}
+
+function initForm(){
+    let datepicker_locale = typeof locale !== "undefined" ? locale : configuration.locale_fallback;
+    let datepicker_format = datepicker_locale === 'en' ? 'mm/dd/yyyy' : 'dd/mm/yyyy';
+
+    $('#rating-form-container').find('.datepicker').datepicker({
+        language: datepicker_locale,
+        format: datepicker_format,
+        autoclose: true,
+        startDate: '0d'
+    });
+
+    $('[data-toggle="popover"]').popover({html:true});
+    $('input[name="rating[shipment][type]"]').on('change',toggleStackableBlock);
+    $('#switch_unit').on('click', changeUnit);
+    initializeShipSelect2Modal();
+    updateUnit();
+    toggleStackableBlock();
+    initParcelLines();
+}
+
+function initFormXs(){
+    $('#trigger-rating-modal').on('click', function() {
+        $('#rating-widget-modal').modal();
+        getRatingForm('rating-form-container');
+    });
+    $('.trigger-modal-rating').on('click', function(){
+        $('#rating-widget-modal').modal();
+        getRatingForm('rating-form-container');
+    });
+}
+
+var checkRateForm = function(){
+    var isValidRateForm = true;
+    var errorsArray = [];
+    if ($('#rating_ship_from_postcode').val() == '' || $('#rating_ship_from_city').val() == '') {
+        let el = $('input.depart_ville');
+        triggerElementError(el);
+        errorsArray.push(el.data('e'));
+        isValidRateForm = false;
+    }
+    if ($('#rating_ship_to_postcode').val() == '' || $('#rating_ship_to_city').val() == '') {
+        let el = $('input.destination_ville');
+        triggerElementError(el);
+        errorsArray.push(el.data('e'));
+        isValidRateForm = false;
+    }
+
+    $('.colis_details').each(function(index) {
+        let weight = $(this).find('[data-dimension="weight"]').val();
+        let dimension = {
+            x:$(this).find('[data-dimension="x"]').val(),
+            y:$(this).find('[data-dimension="y"]').val(),
+            z:$(this).find('[data-dimension="z"]').val()
+        };
+        let volumetricWeight = 0;
+        if($("#rating_shipment_unit").val() == 'us') {
+            volumetricWeight = dimension.x * dimension.y * dimension.z / 138.4;
+        } else {
+            volumetricWeight = dimension.x * dimension.y * dimension.z / 5000;
+            volumetricWeight = Math.ceil(volumetricWeight/0.5) * 0.5;
+        }
+
+        if((weight/volumetricWeight) >= 20) {
+            triggerElementError($(this).find('input'));
+            errorsArray.push($(this).data('e').replace('%parcel_number%', index+1));
+            isValidRateForm = false;
+        } else {
+            triggerElementValid($(this).find('input'));
+        }
+    });
+
+    if (!isValidRateForm) {
+        cloneErrorElement(errorsArray);
+    }
+    return isValidRateForm;
+};
+
+var cloneErrorElement = function(errorsArray) {
+    var errorsHtmlBlock = '';
+
+    var errorsHtmlTemplate =
+        '<div class="alert alert-rating alert-danger" role="alert">' +
+        '<div class="row">' +
+        '<div class="col-10">' +
+        '<ul class="rating-error-list">' +
+        'errorBlock'+
+        '</ul>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+
+    errorsArray.forEach(function(errorElement){
+        errorsHtmlBlock += '<li><i class="fas fa-info-circle mr-2"></i>'+ errorElement +'</li>';
+    });
+    $('div.rating-popup-errors').html(errorsHtmlTemplate.replace('errorBlock', errorsHtmlBlock));
+    $(window).scrollTop('0');
+}
+
+function triggerElementError(element){
+    element.addClass('trigger-error');
+}
+function triggerElementValid(element){
+    element.removeClass('trigger-error');
+}
+
+$('body').on('submit', 'form[name="rating"]', function(e) {
+    if(!checkRateForm()) {
+        return false;
+    }
+    e.preventDefault();
+    let $form = $(this);
+
+    $.ajax({
+        url: $form.attr('action'),
+        data: $form.serialize(),
+        method: 'POST',
+        xhrFields: { withCredentials: true },
+        success: function (s) {
+            if(s.redirectUrl) {
+                window.location.href = s.redirectUrl;
+            }else {
+                $('#rating-form-container').html(s);
+                initForm();
+            }
+            console.log(s);
+        },
+        error: function (e) {
+            console.error(e);
+        }
+    });
+});
+
+function toggleStackableBlock(){
+    let type = $('input[name="rating[shipment][type]"]:checked').val();
+    if (parseInt(type) === 3) {
+        $('#stackable-block').show();
+    } else {
+        $('#stackable-block').hide();
+    }
+}
+
+
+var index_parcel_line = null;
+
+function initParcelLines(){
+    index_parcel_line = $('.colis_details').length;
+
+    $('body').on("click",'.remove_colis', removeParcelLine);
+    $('.add_colis').on("click", addParcelLine);
+}
+
+function removeParcelLine(){
+    let numItems = $('.colis_details').length;
+    if(numItems!='1'){
+        $(this).closest('.colis_details').remove();
+    }
+}
+function addParcelLine(){
+    let content = $('#parcel-line-prototype').data('prototype');
+    content = content.replace(/__name__/g, index_parcel_line);
+    $(".colis_details_actions.bottom").before(content);
+    $("#rating_parcels_"+index_parcel_line+"_number").val(1);
+    index_parcel_line = index_parcel_line + 1;
+}
+
+function changeUnit() {
+    let newUnit = $('#rating_shipment_unit').val() === 'eu' ? 'us':'eu';
+    $('#rating_shipment_unit').val(newUnit);
+    updateUnit();
+}
+
+function updateUnit() {
+    let unit = $('#rating_shipment_unit').val();
+    if(unit === 'us') {
+        $('.u_mesure').html('inch');
+        $('.u_poid').html('lbs');
+    } else {
+        $('.u_mesure').html('cm');
+        $('.u_poid').html('kg');
+    }
+}
+
+$('body').on("click", "#exchange",function(){
+    var depart_country = $('#rating_ship_from_country_code').val();
+    var depart_country_id = $('select[data-custom-country-from]').val();
+    var depart_ville = $('#rating_ship_from_city').val();
+    var depart_postcode = $('#rating_ship_from_postcode').val();
+    var depart_adresse = $('input[name="depart_ville"]').val();
+    var ship_from_pro = $('input[name="rating[ship_from][pro]"]:checked').val();
+
+    var destination_country = $('#rating_ship_to_country_code').val();
+    var destination_country_id = $('select[data-custom-country-to]').val();
+    var destination_ville = $('#rating_ship_to_city').val();
+    var destination_postcode = $('#rating_ship_to_postcode').val();
+    var destination_adresse = $('input[name="destination_ville"]').val();
+    var ship_to_pro = $('input[name="rating[ship_to][pro]"]:checked').val();
+
+    let depart_ville_option = $('.depart_ville > option:selected');
+    let destination_ville_option = $('.destination_ville  > option:selected');
+
+    $(".depart_ville, .destination_ville").find("option:selected").removeAttr("selected").trigger('change');
+    depart_ville_option.appendTo(".destination_ville").trigger('change');
+    destination_ville_option.appendTo(".depart_ville").trigger('change');
+
+    $('#rating_ship_from_country_code').val(destination_country);
+    $('select[data-custom-country-from]').val(destination_country_id);
+    $('div[c-data="depart_ville"]').html($('div[c-data="depart_ville"]').html().replace(depart_country, destination_country));
+    $('#rating_ship_from_city').val(destination_ville);
+    $('#rating_ship_from_postcode').val(destination_postcode);
+    $('input[name="depart_ville"]').val(destination_adresse);
+    $('input:radio[name="rating[ship_from][pro]"][value="'+ship_to_pro+'"]').prop('checked', true);
+
+    $('#rating_ship_to_country_code').val(depart_country);
+    $('select[data-custom-country-to]').val(depart_country_id);
+    $('div[c-data="destination_ville"]').html($('div[c-data="depart_ville"]').html().replace(destination_country, depart_country));
+
+    $('#rating_ship_to_city').val(depart_ville);
+    $('#rating_ship_to_postcode').val(depart_postcode);
+    $('input[name="destination_ville"]').val(depart_adresse);
+    $('input:radio[name="rating[ship_to][pro]"][value="'+ship_from_pro+'"]').prop('checked', true);
+});

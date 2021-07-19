@@ -1,0 +1,44 @@
+const configuration = {
+    urlRatingTemplate: 'https://app.upela.com/%locale%/widget/rating',
+    urlRatingXsTemplate : 'https://app.upela.com/%locale%/widget/rating-xs',
+    urlHeaderAccountTemplate: 'https://app.upela.com/%locale%/widget/header-account',
+    urlTrack: 'https://app.upela.com/widget/tracking/%tracking_number%',
+    urlAnalytics: 'https://app.upela.com/analytics-data',
+    locale_fallback: 'fr',
+    getCurrentLocale: function() {
+        return typeof locale !== "undefined" ? locale : this.locale_fallback;
+    },
+    getUrlRating : function () {
+        let targetLocale = this.locale_fallback;
+        if(typeof locale !== "undefined") {
+            targetLocale = locale;
+        }
+
+        return this.urlRatingTemplate.replace('%locale%', targetLocale);
+    },
+    getUrlRatingXs : function () {
+        let targetLocale = this.locale_fallback;
+        if(typeof locale !== "undefined") {
+            targetLocale = locale;
+        }
+
+        return this.urlRatingXsTemplate.replace('%locale%', targetLocale);
+    },
+    getUrlHeaderAccount : function () {
+        let targetLocale = this.locale_fallback;
+        if(typeof locale !== "undefined") {
+            targetLocale = locale;
+        }
+
+        return this.urlHeaderAccountTemplate.replace('%locale%', targetLocale);
+    },
+    getUrlTrack: function(trackingNumber) {
+        let targetLocale = this.locale_fallback;
+        if(typeof locale !== "undefined") {
+            targetLocale = locale;
+        }
+
+        return this.urlTrack.replace('%tracking_number%', trackingNumber) + '?lang=' + locale;
+    }
+
+};

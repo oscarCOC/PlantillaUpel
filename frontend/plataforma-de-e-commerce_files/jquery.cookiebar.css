@@ -1,0 +1,12 @@
+#cookie-bar {background-color: rgba(17, 17, 17, 0.9); height:auto; line-height:24px; color:#eeeeee; text-align:center; padding:3px 0;z-index: 5;}
+#cookie-bar.fixed {position:fixed; top:0; left:0; width:100%;}
+#cookie-bar.fixed.bottom {bottom:0; top:auto;}
+#cookie-bar p {margin:0; padding:0;font-weight: bold;padding-top: 10px; padding-bottom: 10px}
+#cookie-bar a {color:#ffffff; display:inline-block; border-radius:3px; text-decoration:none; padding:0 6px; margin-left:8px;font-weight: bold}
+#cookie-bar .cb-enable {background:#eb5f3b;}
+#cookie-bar .cb-enable:hover {background:#eb5f3b;}
+#cookie-bar .cb-disable {background:#990000;}
+#cookie-bar .cb-disable:hover {background:#bb0000;}
+#cookie-bar .cb-policy {background:#2389A6;}
+#cookie-bar .cb-policy:hover {background:#2389A6;}
+#cookie-bar p {font-size: 12px;}

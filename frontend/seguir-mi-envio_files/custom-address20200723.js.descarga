@@ -1,0 +1,78 @@
+var $select2from = initializeShipSelect2('from');
+var $select2to = initializeShipSelect2('to');
+function initializeShipSelect2(ship) {
+    return $('select[data-custom-address-select2-'+ship+']').select2({
+        language: {
+            inputTooShort : function(){return $('select[data-custom-address-select2-to]').data('input-to-short')}
+        },
+        placeholder: $('select[data-custom-address-select2-'+ship+']').data('placeholder'),
+        ajax:{
+            url: $('select[data-custom-address-select2-to]').data('url'),
+            dataType: 'json',
+            method: 'POST',
+            data: function (params) {
+                return {
+                    q: params.term,
+                    country_id: $('select[data-custom-country-'+ship+']').val()
+                };
+            },
+            processResults: processAcResults
+        },
+        minimumInputLength: 2,
+        templateSelection: function(repo){
+            if (typeof repo.city !== 'undefined') {
+                $('#rating_ship_'+ship+'_city').val(repo.city); $('#rating_ship_'+ship+'_postcode').val(repo.zip_code);
+            }
+            return repo.text;
+        }
+    })
+}
+function processAcResults(data, params) {
+    var acities = [];
+    for(let city of data){
+        if (city.zip_code == '' || city.zip_code == null) {
+            city.zip_code = 'NaN';
+        }
+        acities.push({id: city.value, text:city.value, city: city.city, zip_code: city.zip_code})
+    }
+    return {results: acities}
+}
+function initializeShipSelect2Modal(){
+    $select2from = initializeShipSelect2('from');
+    $select2to   = initializeShipSelect2('to');
+}
+$('body').on('click', '.select-items div',function(){
+    var elementOnFocus = $('.select-selected.select-on-focus');
+    $(this).parent().find('div[selected="selected"]').removeAttr('selected');
+    $(this).attr('selected', true);
+    elementOnFocus.html($(this).attr('c-code'));
+    elementOnFocus.parent().find('select').val($(this).attr('c-id'));
+    $('#' + elementOnFocus.parent().find('select').attr('data-custom-address-country')).val($(this).attr('c-code'));
+    $('.' + elementOnFocus.attr('c-data')).val('');
+    $('#' + elementOnFocus.data('target-city')).val('');
+    $('#' + elementOnFocus.data('target-postcode')).val('');
+    $('#' + $('.' + elementOnFocus.attr('c-data')).attr('data-custom-address-city')).val('');
+    $('#' + $('.' + elementOnFocus.attr('c-data')).attr('data-custom-address-postcode')).val('');
+    $('.select-selected.select-on-focus').removeClass('select-on-focus');
+    $('.select-items').hide();
+
+    if (elementOnFocus.attr('c-data') == 'depart_ville' && typeof $select2from !== 'undefined') {
+        $select2from.val(null).trigger("change")
+    }
+
+    if (elementOnFocus.attr('c-data') == 'destination_ville' && typeof $select2to !== 'undefined') {
+        $select2to.val(null).trigger("change")
+    }
+
+    var pictoSelected = $(this).find('.picto-card-selected');
+
+    if (pictoSelected != 'undefined' || pictoSelected == '') {
+        $('.select-selected-bis').html($(this).attr('c-code'));
+
+        if ($('.select-selected-bis').find('.picto-cb').length <= 0) {
+            $('.select-selected-bis').prepend(pictoSelected.html());
+        }
+
+        $('#cardToken').find('option[value="' + $(this).attr('c-id') + '"]').prop('selected', true);
+    }
+});

@@ -1,0 +1,120 @@
+$(document).ready(function(){
+    if($('#header-account').length > 0) {
+        $.ajax({
+            url: configuration.getUrlHeaderAccount(locale),
+            method: 'GET',
+            xhrFields: { withCredentials: true },
+            success: function (s) {
+                $('#header-account').html(s.headerAccount);
+                if(typeof s.loginModal !== "undefined"){
+                    $('body').append(s.loginModal);
+                    $('#trigger-modal-login').on('click', function(){
+                        $('#loginModal').modal();
+                    });
+
+                    if(getCookie('upl_datalayer') !== '') {
+                        setCookie('upl_datalayer', '', 0);
+                    }
+                } else {
+                    if (getCookie('upl_datalayer') === '') {
+                        getDatalayerUpl();
+                    }
+                }
+            },
+            error: function (err) {
+                console.log(err);
+            }
+        });
+    }
+});
+
+$('.navbar-toggler.navbar-toggler-user').on('click', function(){
+    $('#navbarCollapseLeft').removeClass('show');
+});
+$('.navbar-toggler.navbar-toggler-bars').on('click', function(){
+    $('#navbarCollapseRight').removeClass('show');
+});
+
+function submitLogin(targetUrl){
+    this.event.preventDefault();
+    $.ajax({
+        type: 'POST',
+        url: targetUrl,
+        xhrFields: { withCredentials: true },
+        data: {
+            'login': $('#user-login').val(),
+            'password': $('#user-pass').val(),
+            'rememberMe': $('#rememberMe').prop('checked'),
+            'shipment_id': $('#shipmentId').val()
+        },
+        success: function(resp){
+            getDatalayerUpl(function() {
+                $('#loginModal').modal('hide');
+                window.location.href = resp;
+            });
+        },
+        error: function(err){
+            $('#user-pass').css('border-color', '#a94442');
+            $('.error.login-error').removeClass('d-none');
+        }
+    });
+}
+
+$('body').on('keyup', '#user-pass, #user-login', function(e){
+    $('#user-pass').closest('div').find('span.login-error').not('.d-none').addClass('d-none');
+});
+
+function submitForgetPassword(targetUrl){
+    this.event.preventDefault();
+    $.ajax({
+        type: 'POST',
+        url: targetUrl,
+        xhrFields: { withCredentials: true },
+        data: {
+            'email': $('#user-forgetPass-email').val()
+        },
+        success: function(resp){
+            if (resp.success) {
+                $('#user-forgetPass-email').css('border-color', '#898F9E');
+                $('.error.error-forgetPass').addClass('d-none').text('');
+                $('#forgetPasswordModal').modal('hide');
+                $('#successUpdatePass').modal('show');
+                $('div.forgetPasswordSuccess label.login-adds').text(
+                    $('div.forgetPasswordSuccess label.login-adds').attr('data-message').replace('nom@email.com‌', $('#user-forgetPass-email').val())
+                );
+            } else {
+                $('.error.error-forgetPass').removeClass('d-none').text('Email not found !');
+            }
+        },
+        error: function(err){
+            $('#user-forgetPass-email').css('border-color', '#a94442');
+            $('.error.error-forgetPass').removeClass('d-none').text(err.errors);
+        }
+    });
+}
+
+$('body').on('click', '.closeModal', function(){
+    $($(this).attr('data-modal-close')).modal('hide');
+});
+
+
+function getDatalayerUpl(func)
+{
+    let analyticsComplete = [function (res) {
+        if(res.responseJSON.datas) {
+            setCookie('upl_datalayer', res.responseJSON.datas, 365);
+        } else {
+            setCookie('upl_datalayer', '', 0);
+        }
+    }];
+    if( typeof func !== 'undefined') {
+        analyticsComplete.push(func);
+    }
+
+    $.ajax({
+        url: configuration.urlAnalytics,
+        method: 'GET',
+        xhrFields: { withCredentials:true },
+        complete: analyticsComplete
+    })
+}

@@ -1,0 +1,32 @@
+jQuery.expr[':'].contains = function(a, i, m) {
+    return jQuery(a).text().toUpperCase().indexOf(m[3].toUpperCase()) >= 0;
+};
+
+$('body').on('click', '.select-selected',function(){
+    $(this).addClass('select-on-focus');
+    $(this).next('div').toggle();
+    $(this).next('div').find('input').focus();
+});
+
+$('body').on('keyup', '.select-items input',function(){
+    var searchText = $(this).val().toLowerCase();
+    $('.select-items:visible div:contains('+ searchText +')').show();
+    $('.select-items:visible div:not(:contains('+ searchText +'))').hide();
+    $('.select-items:visible div:visible').each(function(){
+        $(this).html($(this).text().replace(new RegExp("(" + searchText + ")", "gi"), '<span>$1</span>'));
+    });
+});
+
+$('body').on('keydown', function(e){
+    if (e.keyCode === 27) {
+        $('.select-selected.select-on-focus').removeClass('select-on-focus');
+        $('.select-items:visible').hide();
+    }
+});
+
+document.addEventListener("click" ,function(event){
+    if (!$(event.target).parent().hasClass('select-items') && event.target != $('.select-on-focus')[0]) {
+        $('.select-selected.select-on-focus').removeClass('select-on-focus');
+        $('.select-items:visible').hide();
+    }
+});
